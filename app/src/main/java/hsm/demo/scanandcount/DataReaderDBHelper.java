@@ -33,7 +33,7 @@ public class DataReaderDBHelper extends SQLiteOpenHelper{
     // Database Version
     private static final int DATABASE_VERSION = 2;
     // Database Name
-    private static final String DATABASE_NAME = "DatenInfo.sql";
+    private static final String DATABASE_NAME = "DatenInfo2.sql";
 
     private static final String TEXT_TYPE = " TEXT";
     private static final String INT_TYPE = " INT";
@@ -43,6 +43,7 @@ public class DataReaderDBHelper extends SQLiteOpenHelper{
             "CREATE TABLE " + DataReaderContract.DataEntry.TABLE_NAME + " (" +
                     DataReaderContract.DataEntry.COLUMN_NAME_ID + " INTEGER PRIMARY KEY," +
                     DataReaderContract.DataEntry.COLUMN_NAME_DATA + TEXT_TYPE + COMMA_SEP +
+                    DataReaderContract.DataEntry.COLUMN_NAME_LAGERORT + TEXT_TYPE + COMMA_SEP +
                     DataReaderContract.DataEntry.COLUMN_NAME_QUANTITY + INT_TYPE + COMMA_SEP +
                     DataReaderContract.DataEntry.COLUMN_NAME_DATE + INT_TYPE + " )";
 
@@ -84,6 +85,7 @@ public class DataReaderDBHelper extends SQLiteOpenHelper{
         ContentValues values = new ContentValues();
 
         values.put(DataReaderContract.DataEntry.COLUMN_NAME_DATA , myItem.getData());
+        values.put(DataReaderContract.DataEntry.COLUMN_NAME_LAGERORT , myItem.getLagerort());
         values.put(DataReaderContract.DataEntry.COLUMN_NAME_QUANTITY, myItem.getQuantity());
         values.put(DataReaderContract.DataEntry.COLUMN_NAME_DATE, myItem.getTimestamp());
 
@@ -115,6 +117,7 @@ public class DataReaderDBHelper extends SQLiteOpenHelper{
 
         Cursor c=db.rawQuery("SELECT "+
                 DataReaderContract.DataEntry.COLUMN_NAME_DATA+", "+
+                DataReaderContract.DataEntry.COLUMN_NAME_LAGERORT+", "+
                 DataReaderContract.DataEntry.COLUMN_NAME_QUANTITY+", "+
                 DataReaderContract.DataEntry.COLUMN_NAME_DATE +
                 " FROM " + DataReaderContract.DataEntry.TABLE_NAME,
@@ -134,7 +137,7 @@ public class DataReaderDBHelper extends SQLiteOpenHelper{
 //                java.util.Date d = getDate(c.getString(2));
                 //add new item from sqlite data row
 //                myItems.add(new item(c.getString(0), c.getInt(1), getDate(c.getString(2))));
-                myItems.add(new item(c.getString(0), c.getInt(1), c.getLong(2)));
+                myItems.add(new item(c.getString(0), c.getString(1), c.getInt(2), c.getLong(3)));
             }while (c.moveToNext());
         }
         c.close();

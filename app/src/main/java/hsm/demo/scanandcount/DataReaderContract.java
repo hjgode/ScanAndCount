@@ -15,6 +15,7 @@ public final class DataReaderContract {
         public static final String TABLE_NAME = "DATA_TABLE";
         public static final String COLUMN_NAME_ID = "id";
         public static final String COLUMN_NAME_DATA = "daten";
+        public static final String COLUMN_NAME_LAGERORT = "lagerort";
         public static final String COLUMN_NAME_QUANTITY = "quantity";
         public static final String COLUMN_NAME_DATE = "date";
     }

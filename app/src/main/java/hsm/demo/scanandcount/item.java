@@ -11,6 +11,7 @@ public class item {
 //    java.util.Date _date;
     String _data;
     int _quantity;
+    String _lagerort;
     long _timestamp;
 
     public long getTimestamp() {
@@ -24,26 +25,47 @@ public class item {
         return _data;
     }
     public void setData(String s){_data=s;}
+
     public int getQuantity(){
         return _quantity;
     }
     public void setQuantity(int i){_quantity=i;}
 
+    public String  getLagerort(){return _lagerort;}
+    public  void set_lagerort(String s){_lagerort=s;};
+/*
 //    public item(String d, int q, java.util.Date dt){
     public item(String d, int q, long ts){
         _id=0;
         _data=d;
+        _lagerort="-";
         _quantity=q;
 //        _date=dt;
         _timestamp=ts;
     }
+*/
+    public item(String d, String l, int q, long ts){
+        _id=0;
+        _data=d;
+        _lagerort=l;
+        _quantity=q;
+//        _date=dt;
+        _timestamp=ts;
+    }
+
     @Override
     public String toString(){
 //        return _id + ", "+_data+", "+_quantity + ", " + DataReaderDBHelper.getDateString(_date);
-        return _id + ", "+_data+", "+_quantity + ", " + DataReaderDBHelper.getDateString(_timestamp);
+        return _id + ", "+_data+", "+_lagerort+", "+_quantity + ", " + DataReaderDBHelper.getDateString(_timestamp);
     }
 
+    public static String csvHeader(){
+        return "Artikel; Menge; Lager; Datum";
+    }
     public String csvLine(){
-        return "\""+_data+"\"; "+_quantity + "; \"" + DataReaderDBHelper.getDateString(_timestamp)+"\"";
+        return "\""+_data+"\""+"; "
+                + ""   + _quantity + "; "
+                + "\"" + _lagerort + "\"" +"; "
+                + "\"" + DataReaderDBHelper.getDateString(_timestamp)+"\"";
     }
 }

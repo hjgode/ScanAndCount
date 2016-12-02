@@ -69,6 +69,7 @@ public class CSVHandler  {
     String write(List<item> myList) {
         Log.d(TAG, "write...");
         StringBuilder sb=new StringBuilder();
+        sb.append(item.csvHeader()+"\r\n");    //write header line
         for (item i:myList
              ) {
             sb.append(i.csvLine()+"\r\n");

@@ -4,7 +4,9 @@ import android.animation.ArgbEvaluator;
 import android.animation.ObjectAnimator;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.DialogInterface;
+import android.content.SharedPreferences;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
@@ -17,7 +19,9 @@ import android.view.animation.DecelerateInterpolator;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -31,13 +35,22 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
     static String TAG = "ScanAndCount: ";
     EditText txtData;
     EditText txtQuantity;
+    EditText txtLagerort;
     Button btnCancel;
     Button btnSave;
+    CheckBox chkLagerort;
+
+    LinearLayout panelLagerort;
+
     Button btnList;
     Button btnClear;
     Button btnExport;
     Button btnKeybd;
     boolean bIsKeydbVisible=false;
+
+    //persist and check if Lagerort will be shown or not
+    boolean mUseLagerort=false;
+    private static final String USE_LAGERORT="USE_LAGERORT";
 
     DataReaderDBHelper mDbHelper;
 
@@ -47,6 +60,19 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // Check whether we're recreating a previously destroyed instance
+        loadPrefs();
+        Log.e(TAG, "onCreate: mUseLagerort=" + mUseLagerort);
+/*
+        if (savedInstanceState != null) {
+            // Restore value of members from saved state
+            mUseLagerort = savedInstanceState.getBoolean(USE_LAGERORT);
+            savePrefs();
+        } else {
+            // Probably initialize members with default values for a new instance
+            loadPrefs();
+        }
+*/
         setContentView(R.layout.activity_scan_and_count);
 
         mDbHelper = new DataReaderDBHelper(getApplicationContext());
@@ -64,13 +90,6 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
                     txtData.setBackgroundColor(getResources().getColor(android.R.color.transparent));
             }
         });
-//        txtData.setOnTouchListener(new View.OnTouchListener() {
-//            @Override
-//            public boolean onTouch(View v, MotionEvent event) {
-//                txtData.setSelection(0, txtData.getText().length());
-//                return false;
-//            }
-//        });
 
         txtData.setOnKeyListener(new View.OnKeyListener() {
             @Override
@@ -90,30 +109,24 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
         txtData.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView view, int actionId, KeyEvent event) {
-                if (event==null) {
-                    if (actionId==EditorInfo.IME_ACTION_DONE) {
+                if (event == null) {
+                    if (actionId == EditorInfo.IME_ACTION_DONE) {
                         // Capture soft enters in a singleLine EditText that is the last EditText.
                         txtQuantity.requestFocus();
-                    }
-                    else if (actionId==EditorInfo.IME_ACTION_NEXT) {
+                    } else if (actionId == EditorInfo.IME_ACTION_NEXT) {
                         // Capture soft enters in other singleLine EditTexts
                         txtQuantity.requestFocus();
-                    }
-                    else
+                    } else
                         return false;  // Let system handle all other null KeyEvents
-                }
-                else if (actionId==EditorInfo.IME_NULL) {
+                } else if (actionId == EditorInfo.IME_NULL) {
                     // Capture most soft enters in multi-line EditTexts and all hard enters.
                     // They supply a zero actionId and a valid KeyEvent rather than
                     // a non-zero actionId and a null event like the previous cases.
-                    if (event.getAction()==KeyEvent.ACTION_DOWN){
+                    if (event.getAction() == KeyEvent.ACTION_DOWN) {
                         // We capture the event when key is first pressed.
-                    }
-                    else
+                    } else
                         return true;   // We consume the event when the key is released.
-                }
-                else
-                {
+                } else {
                     // We let the system handle it when the listener
                     // is triggered by something that wasn't an enter.
                     return false;
@@ -130,6 +143,84 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
             }
         });
 
+
+        chkLagerort=(CheckBox)findViewById(R.id.chkUseLagerort);
+        chkLagerort.setChecked(mUseLagerort);
+        showHideLagerort();
+        chkLagerort.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (((CheckBox) v).isChecked()) {
+                    mUseLagerort = true;
+                } else {
+                    mUseLagerort = false;
+                }
+                showHideLagerort();
+            }
+        });
+
+        txtLagerort=(EditText)findViewById(R.id.txtLagerort);
+        txtLagerort.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+            @Override
+            public void onFocusChange(View v, boolean hasFocus) {
+                if (hasFocus) {
+                    txtLagerort.setBackgroundColor(getResources().getColor(android.R.color.white));
+                    txtLagerort.setSelection(0, txtLagerort.getText().length());
+                    showKeyboard();
+                } else {
+                    txtLagerort.setBackgroundColor(getResources().getColor(android.R.color.transparent));
+                    hideKeyboard();
+                }
+            }
+        });
+        txtLagerort.setBackgroundColor(getResources().getColor(android.R.color.transparent));
+
+        //detect ENTER or ESC key press on txtLagerort
+        txtLagerort.setOnKeyListener(new View.OnKeyListener() {
+            @Override
+            public boolean onKey(View v, int keyCode, KeyEvent event) {
+                // If the event is a key-down event on the "enter" button
+                if ((event.getAction() == KeyEvent.ACTION_DOWN) &&
+                        (keyCode == KeyEvent.KEYCODE_ENTER)) {
+                    // Perform action on key press
+                    //Toast.makeText(HelloFormStuff.this, edittext.getText(), Toast.LENGTH_SHORT).show();
+                    if(mUseLagerort){
+                        saveData();
+                        return true;
+                    }else{
+                        return false;
+                    }
+                }
+                if ((event.getAction() == KeyEvent.ACTION_DOWN) &&
+                        (keyCode == KeyEvent.KEYCODE_ESCAPE)) {
+                    // Perform action on key press
+                    //Toast.makeText(HelloFormStuff.this, edittext.getText(), Toast.LENGTH_SHORT).show();
+                    if(mUseLagerort){
+                        saveData();
+                        return true;
+                    }else{
+                        return false;
+                    }
+                }
+                return false;
+            }
+        });
+
+        //detect DONE button press
+        txtLagerort.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+            @Override
+            public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
+                if (actionId == EditorInfo.IME_ACTION_DONE) {
+                    // do your stuff here
+                    if(mUseLagerort){
+                        saveData();
+                        return true;
+                    }else
+                        return false;
+                }
+                return false;
+            }
+        });
 
         txtQuantity = (EditText) findViewById(R.id.txtQuantity);
         //perform some action on focus change
@@ -157,15 +248,25 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
                         (keyCode == KeyEvent.KEYCODE_ENTER)) {
                     // Perform action on key press
                     //Toast.makeText(HelloFormStuff.this, edittext.getText(), Toast.LENGTH_SHORT).show();
-                    saveData();
-                    return true;
+                    if(!mUseLagerort){
+                        saveData();
+                        return true;
+                    }else{
+                        txtLagerort.requestFocus();
+                        return false;
+                    }
                 }
                 if ((event.getAction() == KeyEvent.ACTION_DOWN) &&
                         (keyCode == KeyEvent.KEYCODE_ESCAPE)) {
                     // Perform action on key press
                     //Toast.makeText(HelloFormStuff.this, edittext.getText(), Toast.LENGTH_SHORT).show();
-                    saveData();
-                    return true;
+                    if(!mUseLagerort){
+                        saveData();
+                        return true;
+                    }else{
+                        txtLagerort.requestFocus();
+                        return false;
+                    }
                 }
                 return false;
             }
@@ -177,12 +278,18 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
             public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
                 if (actionId == EditorInfo.IME_ACTION_DONE) {
                     // do your stuff here
-                    saveData();
-                    return true;
+                    if(!mUseLagerort){
+                        saveData();
+                        return true;
+                    }else{
+                        txtLagerort.requestFocus();
+                        return false;
+                    }
                 }
                 return false;
             }
         });
+
         //link buttons
         btnCancel = (Button) findViewById(R.id.btnCancel);
         btnSave = (Button) findViewById(R.id.btnSave);
@@ -248,9 +355,49 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
         startOver();
     }
 
+    void showHideLagerort(){
+        EditText mEdit=(EditText)findViewById(R.id.txtLagerort);
+        mEdit.setEnabled(mUseLagerort);
+        panelLagerort = (LinearLayout)findViewById(R.id.linearLayout2);
+        try {
+            if (mUseLagerort)
+                panelLagerort.setVisibility(View.VISIBLE);
+            else {
+                panelLagerort.setVisibility(View.GONE);
+            }
+        }catch(Exception e){}
+
+    }
+
+    void savePrefs(){
+        //WRITE
+        SharedPreferences sharedPref = this.getPreferences(Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPref.edit();
+        editor.putBoolean(USE_LAGERORT, mUseLagerort);
+        editor.commit();
+    }
+    void loadPrefs() {
+        //READ
+        SharedPreferences sharedPref = this.getPreferences(Context.MODE_PRIVATE);
+        Boolean defaultValue = true;
+        boolean bTemp = sharedPref.getBoolean(USE_LAGERORT, defaultValue);
+        mUseLagerort=bTemp;
+    }
+
+    @Override
+    public void onSaveInstanceState(Bundle savedInstanceState) {
+        // Save the user's current game state
+        savedInstanceState.putBoolean(USE_LAGERORT, mUseLagerort);
+
+        // Always call the superclass so it can save the view hierarchy state
+        super.onSaveInstanceState(savedInstanceState);
+    }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
+
+        savePrefs();
 
         if (barcodeReader != null) {
             // close BarcodeReader to clean up resources.
@@ -338,6 +485,7 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
     }
 
+    //handle button clicks
     private View.OnClickListener myOnClickListener = new View.OnClickListener() {
         public void onClick(View v) {
             switch (v.getId()){
@@ -369,7 +517,7 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
         CSVHandler csvHandler=new CSVHandler(getApplicationContext());
         List<item> myItems=DataReaderDBHelper.readData(mDbHelper);
         String s = csvHandler.write(myItems);
-        showToastMsg("Exported to: "+ s);
+        showToastMsg("Exported to: " + s);
     }
 
     //blinking animation :)
@@ -395,21 +543,45 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
     boolean saveData(){
         //save the data
 //        ContentValues values = new ContentValues();
-        if(txtData.getText().length()==0 || txtQuantity.getText().length()==0){
-            if(txtQuantity.getText().length()==0) {
-                txtQuantity.requestFocus();
-                blinkEditText(txtQuantity);
+        if(mUseLagerort==false) {
+            if (txtData.getText().length() == 0 || txtQuantity.getText().length() == 0) {
+                if (txtQuantity.getText().length() == 0) {
+                    txtQuantity.requestFocus();
+                    blinkEditText(txtQuantity);
+                }
+                if (txtData.getText().length() == 0) {
+                    blinkEditText(txtData);
+                    txtData.requestFocus();
+                }
+                return false;
             }
-            if(txtData.getText().length()==0) {
-                blinkEditText(txtData);
-                txtData.requestFocus();
-            }
-            return false;
         }
+        else
+        {
+            if (txtData.getText().length() == 0 || txtQuantity.getText().length() == 0 || txtLagerort.getText().length() == 0) {
+                if (txtQuantity.getText().length() == 0) {
+                    txtQuantity.requestFocus();
+                    blinkEditText(txtQuantity);
+                }
+                if (txtData.getText().length() == 0) {
+                    blinkEditText(txtData);
+                    txtData.requestFocus();
+                }
+                if (txtLagerort.getText().length() == 0) {
+                    txtLagerort.requestFocus();
+                    blinkEditText(txtLagerort);
+                }
+                return false;
+            }
+        }
+
         String data=txtData.getText().toString();
         int count=Integer.parseInt(txtQuantity.getText().toString());
+        String lager="0";
+        if(mUseLagerort)
+            lager=txtLagerort.getText().toString();
         Date date=new Date();
-        item myItem=new item(data, count, System.currentTimeMillis());
+        item myItem=new item(data, lager, count, System.currentTimeMillis());
         DataReaderDBHelper.saveData(this.mDbHelper, myItem);
         showToastMsg("SAVED");
         //Toast.makeText(getApplicationContext(), "SAVED", Toast.LENGTH_LONG);
@@ -434,6 +606,7 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
             buffer.append(
                     i.getData()+"\n"+
                             i.getQuantity()+"\n"+
+                            i.getLagerort()+"\n"+
                             DataReaderDBHelper.getDateString(i.getTimestamp()) + "\n\n");
         }
         showMessage("Barcode Daten", buffer.toString());
@@ -485,6 +658,7 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
     void startOver(){
         txtData.setText("");
         txtQuantity.setText("");
+        txtLagerort.setText("");
         txtData.requestFocus();
         hideKeyboard();
         //btnSave.setEnabled(false);

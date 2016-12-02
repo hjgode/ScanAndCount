@@ -7,12 +7,16 @@
     <string name="btnListCaption">Liste</string>
     <string name="btnClearLabel">Clear</string>
 
-    <string name="txtYesNoDialogTitle">Bitte bestûÊtigen</string>
+    <string name="txtYesNoDialogTitle">Bitte bestÃ¤tigen</string>
     <string name="txtYesNoDialogYesButtonText">Ja</string>
     <string name="txtYesNoDialogNoButtonText">Nein</string>
-    <string name="txtYesNoDialogText">Sollen alle Daten gelûÑscht werden?</string>
-    <string name="txtMessageNoDelete">Daten werden nicht gelûÑscht</string>
-    <string name="txtMessageYesDeleted">Daten wurden gelûÑscht</string>
+    <string name="txtYesNoDialogText">Sollen alle Daten gelÃ¶scht werden?</string>
+    <string name="txtMessageNoDelete">Daten werden nicht gelÃ¶scht</string>
+    <string name="txtMessageYesDeleted">Daten wurden gelÃ¶scht</string>
     <string name="btnExportCaption">Save CSV</string>
     <string name="btnKeybdCaption">keybd</string>
+    <string name="lblLagerort">Lagerort</string>
+    <string name="rLagerort">Lagerort</string>
+    <string name="preference_file_key">hsm.demo.scanandcount.prefs</string>
+    <string name="bUseLagerort">true</string>
 </resources>
