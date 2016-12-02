@@ -1,0 +1,26 @@
+VERSION 2
+
+Ein neues Label und ein Eingabefeld für Lagerort.
+Eine Checkbox um Lagerort zu verstecken oder zu zeigen.
+Die Daten werden nun für Artikel, Menge und Lagerort gespeichert.
+Wenn Lager ort ausgebldendet is, wird standardmäßig als Lagert eine "0" gespeichert.
+
+VERSION 1
+
+Das obere Feld ist mit dem Scanner verbunden. Normalerweise ist die Tastatur für diese Feld ausgeblendet. Man kann aber die Tastatur jederzeit mit dem [keybd] Button anzeigen.
+Nach deinem Scan springt der Cursor in das Menge Feld und eine numerische Tastatur wird eingeblendet.
+Nach Eingabe einer Zahl und Druck auf [Done] oder [Speichern] wird der Datensatz in einer SQLite Datenbank zusammen mit der Uhrzeit gespeichert.
+Wenn man [Verwerfen] antippt, wird nix gespeichert und man startet von vorn.
+
+Über [Liste] kann man die Liste der gespeicherten Datensätze anzeigen.
+Über [Clear] alle gespeicherten Daten löschen (mit Sicherheitsabfrage).
+
+Über [Save CSV] werden die aufgezeichneten Daten in eine CSV Datei im 'external storage' Bereich unter Documents (Computer\CT50\Internal storage\Documents) und dem Namen "scanandcount.csv" exportiert:
+
+...
+"10110"; 1; "2016-10-25 19:03:01"
+"CODE-39"; 2; "2016-10-25 19:03:01"
+"12345678901234"; 3; "2016-10-25 19:03:01"
+...
+
+Getestet auf CT50 mit Android 4.
