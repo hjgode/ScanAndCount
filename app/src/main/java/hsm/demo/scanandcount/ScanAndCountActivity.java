@@ -2,16 +2,20 @@ package hsm.demo.scanandcount;
 
 import android.animation.ArgbEvaluator;
 import android.animation.ObjectAnimator;
+import android.app.ActionBar;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
-import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.support.v7.app.ActionBarActivity;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.KeyEvent;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.animation.AlphaAnimation;
 import android.view.animation.Animation;
@@ -30,15 +34,28 @@ import java.util.List;
 
 import com.honeywell.aidc.*;
 
-public class ScanAndCountActivity extends AppCompatActivity implements BarcodeReader.BarcodeListener {
+public class ScanAndCountActivity extends  AppCompatActivity implements BarcodeReader.BarcodeListener {
 
     static String TAG = "ScanAndCount: ";
     EditText txtData;
     EditText txtQuantity;
     EditText txtLagerort;
+
+    EditText txtCurrent; //hold current focussed EditText, enables to scan to txtData, (txtQuantity), txtLagerort -> txtData
+
+    enum state {        //create a state machine
+        data,
+        quantity,
+        lager,
+    }
+
+    state currentState = state.data;
+
     Button btnCancel;
     Button btnSave;
     CheckBox chkLagerort;
+    CheckBox chkScanQuantity;
+    CheckBox chkScanLager;
 
     LinearLayout panelLagerort;
 
@@ -46,11 +63,16 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
     Button btnClear;
     Button btnExport;
     Button btnKeybd;
-    boolean bIsKeydbVisible=false;
+    boolean bIsKeydbVisible = false;
 
     //persist and check if Lagerort will be shown or not
-    boolean mUseLagerort=false;
-    private static final String USE_LAGERORT="USE_LAGERORT";
+    boolean mUseLagerort = false;
+    boolean mScanQuantity=false;
+    boolean mScanLager=false;
+
+    private static final String USE_LAGERORT = "USE_LAGERORT";
+    private static final String USE_SCANLAGER = "USE_SCANLAGER";
+    private static final String USE_SCANQUANTITY = "USE_SCANQUANTITY";
 
     DataReaderDBHelper mDbHelper;
 
@@ -60,36 +82,18 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         // Check whether we're recreating a previously destroyed instance
         loadPrefs();
         Log.e(TAG, "onCreate: mUseLagerort=" + mUseLagerort);
-/*
-        if (savedInstanceState != null) {
-            // Restore value of members from saved state
-            mUseLagerort = savedInstanceState.getBoolean(USE_LAGERORT);
-            savePrefs();
-        } else {
-            // Probably initialize members with default values for a new instance
-            loadPrefs();
-        }
-*/
+
         setContentView(R.layout.activity_scan_and_count);
 
         mDbHelper = new DataReaderDBHelper(getApplicationContext());
 
         txtData = (EditText) findViewById(R.id.txtData);
         //perform some action on focus change
-        txtData.setOnFocusChangeListener(new View.OnFocusChangeListener() {
-            @Override
-            public void onFocusChange(View v, boolean hasFocus) {
-                if (hasFocus) {
-                    txtData.setBackgroundColor(getResources().getColor(android.R.color.white));
-                    hideKeyboard();
-                    //txtData.setSelection(0, txtData.getText().length());
-                } else
-                    txtData.setBackgroundColor(getResources().getColor(android.R.color.transparent));
-            }
-        });
+        txtData.setOnFocusChangeListener(onFocusChange);
 
         txtData.setOnKeyListener(new View.OnKeyListener() {
             @Override
@@ -144,35 +148,47 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
         });
 
 
-        chkLagerort=(CheckBox)findViewById(R.id.chkUseLagerort);
+        chkLagerort = (CheckBox) findViewById(R.id.chkUseLagerort);
         chkLagerort.setChecked(mUseLagerort);
-        showHideLagerort();
-        chkLagerort.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (((CheckBox) v).isChecked()) {
-                    mUseLagerort = true;
-                } else {
-                    mUseLagerort = false;
-                }
-                showHideLagerort();
-            }
-        });
+        chkLagerort.setOnClickListener(myCheckBoxListener);
 
-        txtLagerort=(EditText)findViewById(R.id.txtLagerort);
-        txtLagerort.setOnFocusChangeListener(new View.OnFocusChangeListener() {
-            @Override
-            public void onFocusChange(View v, boolean hasFocus) {
-                if (hasFocus) {
-                    txtLagerort.setBackgroundColor(getResources().getColor(android.R.color.white));
-                    txtLagerort.setSelection(0, txtLagerort.getText().length());
-                    showKeyboard();
-                } else {
-                    txtLagerort.setBackgroundColor(getResources().getColor(android.R.color.transparent));
-                    hideKeyboard();
-                }
-            }
-        });
+        chkScanQuantity=(CheckBox)findViewById(R.id.chkScanQuantity);
+        chkScanQuantity.setChecked(mScanQuantity);
+        chkScanQuantity.setOnClickListener(myCheckBoxListener);
+
+        chkScanLager=(CheckBox)findViewById(R.id.chkScanLager);
+        chkScanLager.setChecked(mScanLager);
+        chkScanLager.setOnClickListener(myCheckBoxListener);
+
+        showHideLagerort();
+//        chkLagerort.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                if (((CheckBox) v).isChecked()) {
+//                    mUseLagerort = true;
+//                } else {
+//                    mUseLagerort = false;
+//                }
+//                showHideLagerort();
+//            }
+//        });
+
+        txtLagerort = (EditText) findViewById(R.id.txtLagerort);
+        txtLagerort.setOnFocusChangeListener(onFocusChange);
+//        txtLagerort.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+//            @Override
+//            public void onFocusChange(View v, boolean hasFocus) {
+//                if (hasFocus) {
+//                    txtLagerort.setBackgroundColor(getResources().getColor(android.R.color.white));
+//                    txtLagerort.setSelection(0, txtLagerort.getText().length());
+//                    showKeyboard();
+//                    txtCurrent=txtLagerort;
+//                } else {
+//                    txtLagerort.setBackgroundColor(getResources().getColor(android.R.color.transparent));
+//                    hideKeyboard();
+//                }
+//            }
+//        });
         txtLagerort.setBackgroundColor(getResources().getColor(android.R.color.transparent));
 
         //detect ENTER or ESC key press on txtLagerort
@@ -184,10 +200,10 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
                         (keyCode == KeyEvent.KEYCODE_ENTER)) {
                     // Perform action on key press
                     //Toast.makeText(HelloFormStuff.this, edittext.getText(), Toast.LENGTH_SHORT).show();
-                    if(mUseLagerort){
+                    if (mUseLagerort) {
                         saveData();
                         return true;
-                    }else{
+                    } else {
                         return false;
                     }
                 }
@@ -195,10 +211,10 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
                         (keyCode == KeyEvent.KEYCODE_ESCAPE)) {
                     // Perform action on key press
                     //Toast.makeText(HelloFormStuff.this, edittext.getText(), Toast.LENGTH_SHORT).show();
-                    if(mUseLagerort){
+                    if (mUseLagerort) {
                         saveData();
                         return true;
-                    }else{
+                    } else {
                         return false;
                     }
                 }
@@ -212,10 +228,10 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
             public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
                 if (actionId == EditorInfo.IME_ACTION_DONE) {
                     // do your stuff here
-                    if(mUseLagerort){
+                    if (mUseLagerort) {
                         saveData();
                         return true;
-                    }else
+                    } else
                         return false;
                 }
                 return false;
@@ -224,19 +240,7 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
 
         txtQuantity = (EditText) findViewById(R.id.txtQuantity);
         //perform some action on focus change
-        txtQuantity.setOnFocusChangeListener(new View.OnFocusChangeListener() {
-            @Override
-            public void onFocusChange(View v, boolean hasFocus) {
-                if (hasFocus) {
-                    txtQuantity.setBackgroundColor(getResources().getColor(android.R.color.white));
-                    txtQuantity.setSelection(0,txtQuantity.getText().length());
-                    showKeyboard();
-                } else {
-                    txtQuantity.setBackgroundColor(getResources().getColor(android.R.color.transparent));
-                    hideKeyboard();
-                }
-            }
-        });
+        txtQuantity.setOnFocusChangeListener(onFocusChange);
         txtQuantity.setBackgroundColor(getResources().getColor(android.R.color.transparent));
 
         //detect ENTER or ESC key press on txtQuantity
@@ -248,10 +252,10 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
                         (keyCode == KeyEvent.KEYCODE_ENTER)) {
                     // Perform action on key press
                     //Toast.makeText(HelloFormStuff.this, edittext.getText(), Toast.LENGTH_SHORT).show();
-                    if(!mUseLagerort){
+                    if (!mUseLagerort) {
                         saveData();
                         return true;
-                    }else{
+                    } else {
                         txtLagerort.requestFocus();
                         return false;
                     }
@@ -260,10 +264,10 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
                         (keyCode == KeyEvent.KEYCODE_ESCAPE)) {
                     // Perform action on key press
                     //Toast.makeText(HelloFormStuff.this, edittext.getText(), Toast.LENGTH_SHORT).show();
-                    if(!mUseLagerort){
+                    if (!mUseLagerort) {
                         saveData();
                         return true;
-                    }else{
+                    } else {
                         txtLagerort.requestFocus();
                         return false;
                     }
@@ -278,10 +282,10 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
             public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
                 if (actionId == EditorInfo.IME_ACTION_DONE) {
                     // do your stuff here
-                    if(!mUseLagerort){
+                    if (!mUseLagerort) {
                         saveData();
                         return true;
-                    }else{
+                    } else {
                         txtLagerort.requestFocus();
                         return false;
                     }
@@ -293,10 +297,10 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
         //link buttons
         btnCancel = (Button) findViewById(R.id.btnCancel);
         btnSave = (Button) findViewById(R.id.btnSave);
-        btnList = (Button)findViewById(R.id.btnList);
-        btnClear=(Button)findViewById(R.id.btnClear);
-        btnExport=(Button)findViewById(R.id.btnExport);
-        btnKeybd=(Button)findViewById(R.id.btnKeybd);
+        btnList = (Button) findViewById(R.id.btnList);
+        btnClear = (Button) findViewById(R.id.btnClear);
+        btnExport = (Button) findViewById(R.id.btnExport);
+        btnKeybd = (Button) findViewById(R.id.btnKeybd);
 
         //variant 1
         btnCancel.setOnClickListener(new View.OnClickListener() {
@@ -348,46 +352,53 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
             @Override
             public void onToggleSoftKeyboard(boolean isVisible) {
                 Log.d("keyboard", "keyboard visible: " + isVisible);
-                bIsKeydbVisible=isVisible;
+                bIsKeydbVisible = isVisible;
             }
         });
 
         startOver();
     }
 
-    void showHideLagerort(){
-        EditText mEdit=(EditText)findViewById(R.id.txtLagerort);
+    void showHideLagerort() {
+        EditText mEdit = (EditText) findViewById(R.id.txtLagerort);
         mEdit.setEnabled(mUseLagerort);
-        panelLagerort = (LinearLayout)findViewById(R.id.linearLayout2);
+        panelLagerort = (LinearLayout) findViewById(R.id.linearLayout2);
         try {
             if (mUseLagerort)
                 panelLagerort.setVisibility(View.VISIBLE);
             else {
                 panelLagerort.setVisibility(View.GONE);
             }
-        }catch(Exception e){}
+        } catch (Exception e) {
+        }
 
     }
 
-    void savePrefs(){
+    void savePrefs() {
         //WRITE
         SharedPreferences sharedPref = this.getPreferences(Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPref.edit();
         editor.putBoolean(USE_LAGERORT, mUseLagerort);
+        editor.putBoolean(USE_SCANLAGER, mScanLager);
+        editor.putBoolean(USE_SCANQUANTITY, mScanQuantity);
         editor.commit();
     }
+
     void loadPrefs() {
         //READ
         SharedPreferences sharedPref = this.getPreferences(Context.MODE_PRIVATE);
         Boolean defaultValue = true;
-        boolean bTemp = sharedPref.getBoolean(USE_LAGERORT, defaultValue);
-        mUseLagerort=bTemp;
+        mUseLagerort = sharedPref.getBoolean(USE_LAGERORT, defaultValue);;
+        mScanLager=sharedPref.getBoolean(USE_SCANLAGER, true);
+        mScanQuantity=sharedPref.getBoolean(USE_SCANQUANTITY, false);
     }
 
     @Override
     public void onSaveInstanceState(Bundle savedInstanceState) {
         // Save the user's current game state
         savedInstanceState.putBoolean(USE_LAGERORT, mUseLagerort);
+        savedInstanceState.putBoolean(USE_SCANLAGER, mScanLager);
+        savedInstanceState.putBoolean(USE_SCANQUANTITY, mScanQuantity);
 
         // Always call the superclass so it can save the view hierarchy state
         super.onSaveInstanceState(savedInstanceState);
@@ -411,8 +422,9 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
             manager.close();
         }
     }
+
     @Override
-    public void onResume(){  //will always? be called before app becomes visible?
+    public void onResume() {  //will always? be called before app becomes visible?
         super.onResume();
         if (barcodeReader != null) {
             try {
@@ -427,7 +439,7 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
     }
 
     @Override
-    public void onPause(){
+    public void onPause() {
         super.onPause();
         if (barcodeReader != null) {
             // close BarcodeReader to clean up resources.
@@ -451,7 +463,7 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
         } catch (ScannerUnavailableException e) {
             e.printStackTrace();
         }
-        Log.d(TAG, "barcodereader:  "+event.getBarcodeData());
+        Log.d(TAG, "barcodereader:  " + event.getBarcodeData());
 
         // TODO Auto-generated method stub
         runOnUiThread(new Runnable() {
@@ -462,8 +474,42 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
 //                // update UI to reflect the data
 //                String s = (String) textView.getText();
 //                s = barcodeData + "\n" + timestamp;
-                txtData.setText(barcodeData);
-                txtQuantity.requestFocus();
+                switch (currentState) {
+                    case data:
+                        txtCurrent.setText(barcodeData);
+                        txtQuantity.requestFocus();
+                        break;
+                    case quantity:
+                        if(!mScanQuantity)
+                            break;
+                        //NUMBERS ONLY!
+                        if (isNumeric(barcodeData)) {
+                            txtQuantity.setText(barcodeData);
+                            if (mUseLagerort)
+                                txtLagerort.requestFocus();
+                            else {
+                                saveData();
+                                startOver();
+                            }
+                        } else {
+                            showToastMsg("Invalid Number");
+                            blinkEditText(txtQuantity);
+                            txtQuantity.requestFocus();
+                        }
+                        break;
+                    case lager:
+                        if(!mScanLager)
+                            break;
+                        txtLagerort.setText(barcodeData);
+                        saveData();
+                        startOver();
+                        break;
+                    default:
+                        startOver();
+                        break;
+                }
+//                txtData.setText(barcodeData);
+//                txtQuantity.requestFocus();
             }
         });
     }
@@ -481,14 +527,100 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
 
     }
 
-    private void showToastMsg(String msg){
+    private void showToastMsg(String msg) {
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
     }
+
+    //handle EditText focusChanges
+    private View.OnFocusChangeListener onFocusChange = new View.OnFocusChangeListener() {
+        @Override
+        public void onFocusChange(View v, boolean hasFocus) {
+            switch (v.getId()) {
+                case R.id.txtData:
+                    if (hasFocus) {
+                        txtCurrent = txtData;
+                        currentState = state.data;
+                    }
+                    if (hasFocus) {
+                        txtData.setBackgroundColor(getResources().getColor(android.R.color.white));
+                        hideKeyboard();
+                        //txtData.setSelection(0, txtData.getText().length());
+                    } else
+                        txtData.setBackgroundColor(getResources().getColor(android.R.color.transparent));
+                    break;
+                case R.id.txtQuantity:
+                    if (hasFocus) {
+                        txtCurrent = txtQuantity;
+                        currentState = state.quantity;
+                    }
+                    if (hasFocus) {
+                        txtQuantity.setBackgroundColor(getResources().getColor(android.R.color.white));
+                        txtQuantity.setSelection(0, txtQuantity.getText().length());
+                        showKeyboard();
+                    } else {
+                        txtQuantity.setBackgroundColor(getResources().getColor(android.R.color.transparent));
+                        hideKeyboard();
+                    }
+                    break;
+                case R.id.txtLagerort:
+                    if (hasFocus) {
+                        txtCurrent = txtLagerort;
+                        currentState = state.lager;
+                    }
+                    if (hasFocus) {
+                        txtLagerort.setBackgroundColor(getResources().getColor(android.R.color.white));
+                        txtLagerort.setSelection(0, txtLagerort.getText().length());
+                        showKeyboard();
+                        txtCurrent = txtLagerort;
+                    } else {
+                        txtLagerort.setBackgroundColor(getResources().getColor(android.R.color.transparent));
+                        hideKeyboard();
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+    };
+
+    //handle checkbox clicks
+    private  View.OnClickListener myCheckBoxListener=new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            switch (v.getId()){
+                case R.id.chkUseLagerort:
+                    if (((CheckBox) v).isChecked()) {
+                        mUseLagerort = true;
+                    } else {
+                        mUseLagerort = false;
+                    }
+                    showHideLagerort();
+                    break;
+                case R.id.chkScanQuantity:
+                    if (((CheckBox) v).isChecked()) {
+                        mScanQuantity = true;
+                    } else {
+                        mScanQuantity = false;
+                    }
+                    break;
+                case R.id.chkScanLager:
+                    if (((CheckBox) v).isChecked()) {
+                        mScanLager = true;
+                    } else {
+                        mScanLager = false;
+                    }
+                    break;
+                default:
+                    break;
+            }
+
+        }
+    };
 
     //handle button clicks
     private View.OnClickListener myOnClickListener = new View.OnClickListener() {
         public void onClick(View v) {
-            switch (v.getId()){
+            switch (v.getId()) {
                 case R.id.btnSave:
                     saveData();
                     break;
@@ -502,7 +634,7 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
                     exportData();
                     break;
                 case R.id.btnKeybd:
-                    if(bIsKeydbVisible)
+                    if (bIsKeydbVisible)
                         hideKeyboard();
                     else
                         showKeyboard();
@@ -513,9 +645,9 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
         }
     };
 
-    void exportData(){
-        CSVHandler csvHandler=new CSVHandler(getApplicationContext());
-        List<item> myItems=DataReaderDBHelper.readData(mDbHelper);
+    void exportData() {
+        CSVHandler csvHandler = new CSVHandler(getApplicationContext());
+        List<item> myItems = DataReaderDBHelper.readData(mDbHelper);
         String s = csvHandler.write(myItems);
         showToastMsg("Exported to: " + s);
     }
@@ -530,7 +662,7 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
         return fadeIn;
     }
 
-    void blinkEditText(final EditText et){
+    void blinkEditText(final EditText et) {
         final ObjectAnimator backgroundColorAnimator = ObjectAnimator.ofObject(et,
                 "backgroundColor",
                 new ArgbEvaluator(),
@@ -540,10 +672,10 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
         backgroundColorAnimator.start();
     }
 
-    boolean saveData(){
+    boolean saveData() {
         //save the data
 //        ContentValues values = new ContentValues();
-        if(mUseLagerort==false) {
+        if (mUseLagerort == false) {
             if (txtData.getText().length() == 0 || txtQuantity.getText().length() == 0) {
                 if (txtQuantity.getText().length() == 0) {
                     txtQuantity.requestFocus();
@@ -555,9 +687,7 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
                 }
                 return false;
             }
-        }
-        else
-        {
+        } else {
             if (txtData.getText().length() == 0 || txtQuantity.getText().length() == 0 || txtLagerort.getText().length() == 0) {
                 if (txtQuantity.getText().length() == 0) {
                     txtQuantity.requestFocus();
@@ -575,13 +705,13 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
             }
         }
 
-        String data=txtData.getText().toString();
-        int count=Integer.parseInt(txtQuantity.getText().toString());
-        String lager="0";
-        if(mUseLagerort)
-            lager=txtLagerort.getText().toString();
-        Date date=new Date();
-        item myItem=new item(data, lager, count, System.currentTimeMillis());
+        String data = txtData.getText().toString();
+        long count = Long.parseLong(txtQuantity.getText().toString());
+        String lager = "0";
+        if (mUseLagerort)
+            lager = txtLagerort.getText().toString();
+        Date date = new Date();
+        item myItem = new item(data, lager, count, System.currentTimeMillis());
         DataReaderDBHelper.saveData(this.mDbHelper, myItem);
         showToastMsg("SAVED");
         //Toast.makeText(getApplicationContext(), "SAVED", Toast.LENGTH_LONG);
@@ -597,29 +727,29 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
         return true;
     }
 
-    void listData(){
-        List<item> myItems=DataReaderDBHelper.readData(mDbHelper);
+    void listData() {
+        List<item> myItems = DataReaderDBHelper.readData(mDbHelper);
         // Appending records to a string buffer
-        StringBuffer buffer=new StringBuffer();
+        StringBuffer buffer = new StringBuffer();
         // Displaying all records
-        for (item i:myItems) {
+        for (item i : myItems) {
             buffer.append(
-                    i.getData()+"\n"+
-                            i.getQuantity()+"\n"+
-                            i.getLagerort()+"\n"+
+                    i.getData() + "\n" +
+                            i.getQuantity() + "\n" +
+                            i.getLagerort() + "\n" +
                             DataReaderDBHelper.getDateString(i.getTimestamp()) + "\n\n");
         }
         showMessage("Barcode Daten", buffer.toString());
     }
 
-    void clearData(){
+    void clearData() {
         //ask before delete!?
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
 
         String title = getResources().getString(R.string.txtYesNoDialogTitle);
-        String txtYes= getResources().getString(R.string.txtYesNoDialogYesButtonText);
-        String txtNo =  getResources().getString(R.string.txtYesNoDialogNoButtonText);
-        String text =  getResources().getString(R.string.txtYesNoDialogText);
+        String txtYes = getResources().getString(R.string.txtYesNoDialogYesButtonText);
+        String txtNo = getResources().getString(R.string.txtYesNoDialogNoButtonText);
+        String text = getResources().getString(R.string.txtYesNoDialogText);
         builder.setTitle(title);
         builder.setMessage(text);
 
@@ -646,16 +776,15 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
         alert.show();
     }
 
-    public void showMessage(String title,String message)
-    {
-        AlertDialog.Builder builder=new AlertDialog.Builder(this);
+    public void showMessage(String title, String message) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setCancelable(true);
         builder.setTitle(title);
         builder.setMessage(message);
         builder.show();
     }
 
-    void startOver(){
+    void startOver() {
         txtData.setText("");
         txtQuantity.setText("");
         txtLagerort.setText("");
@@ -664,7 +793,8 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
         //btnSave.setEnabled(false);
 
     }
-    void hideKeyboard(){
+
+    void hideKeyboard() {
         //hide keyboard
 //        txtData.setInputType(InputType.TYPE_NULL);
 //        txtData.setRawInputType(InputType.TYPE_CLASS_TEXT);
@@ -672,10 +802,21 @@ public class ScanAndCountActivity extends AppCompatActivity implements BarcodeRe
         ((InputMethodManager) getSystemService(Activity.INPUT_METHOD_SERVICE))
                 .toggleSoftInput(InputMethodManager.SHOW_IMPLICIT, 0);
     }
-    void showKeyboard(){
+
+    void showKeyboard() {
         /* show keyboard */
         ((InputMethodManager) getSystemService(Activity.INPUT_METHOD_SERVICE))
                 .toggleSoftInput(0, InputMethodManager.HIDE_IMPLICIT_ONLY);
 
     }
+
+    public static boolean isNumeric(String str) {
+        boolean b = str.matches("\\d+?");  //match a number no - or decimal point allowed
+        if (b)
+            Log.d(TAG, str + " is numeric");
+        else
+            Log.d(TAG, str + " is NOT numeric");
+        return b;
+    }
+
 }

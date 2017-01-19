@@ -10,7 +10,7 @@ public class item {
     long _id;
 //    java.util.Date _date;
     String _data;
-    int _quantity;
+    long _quantity;
     String _lagerort;
     long _timestamp;
 
@@ -26,7 +26,7 @@ public class item {
     }
     public void setData(String s){_data=s;}
 
-    public int getQuantity(){
+    public long getQuantity(){
         return _quantity;
     }
     public void setQuantity(int i){_quantity=i;}
@@ -44,7 +44,7 @@ public class item {
         _timestamp=ts;
     }
 */
-    public item(String d, String l, int q, long ts){
+    public item(String d, String l, long q, long ts){
         _id=0;
         _data=d;
         _lagerort=l;

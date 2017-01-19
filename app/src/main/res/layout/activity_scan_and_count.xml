@@ -8,21 +8,11 @@
     android:paddingLeft="@dimen/activity_horizontal_margin"
     android:paddingRight="@dimen/activity_horizontal_margin"
     android:paddingTop="@dimen/activity_vertical_margin"
-    tools:context="scanandcount.MainActivity"
+    tools:context="hsm.demo.scanandcount.ScanAndCountActivity"
     android:background="#dbdbdb">
 
 
     <!-- Just to be able to control the keyboard visibility -->
-    <LinearLayout
-        android:layout_width="0px"
-        android:layout_height="0px"
-        android:focusable="true"
-        android:focusableInTouchMode="true"
-        android:id="@+id/linearLayout">
-        <requestFocus />
-    </LinearLayout>
-
-
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -57,10 +47,19 @@
         android:text="@string/numberLabelText"
         android:id="@+id/numberLabel"
         android:layout_below="@+id/txtData"
-        android:layout_centerHorizontal="true"
         android:layout_marginTop="6dp"
         android:textSize="24dp"
-        android:enabled="true" />
+        android:enabled="true"
+        android:layout_alignEnd="@+id/btnExport" />
+
+    <CheckBox
+        android:text="scan"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/chkScanQuantity"
+        android:layout_above="@+id/txtQuantity"
+        android:layout_alignParentEnd="true"
+        />
 
     <EditText
         android:layout_width="wrap_content"
@@ -98,20 +97,30 @@
         android:id="@+id/linearLayout2"
         android:layout_marginTop="6dp"
         android:layout_below="@+id/txtQuantity"
-        android:layout_toEndOf="@+id/linearLayout"
         android:layout_alignParentStart="true">
-
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:weightSum="1">
         <TextView
-            android:layout_width="match_parent"
+            android:layout_width="254dp"
             android:layout_height="wrap_content"
             android:textAppearance="?android:attr/textAppearanceMedium"
             android:text="@string/lblLagerort"
             android:id="@+id/lblLagerort"
             android:textSize="24dp"
             android:enabled="true"
-            android:layout_below="@+id/btnCancel"
-            android:layout_toEndOf="@+id/linearLayout" />
+            android:layout_weight="0.40" />
 
+    <CheckBox
+        android:text="scan"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/chkScanLager"
+        android:layout_alignParentEnd="true"
+        />
+</LinearLayout>
         <EditText
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -124,9 +133,6 @@
             android:textStyle="bold"
             android:singleLine="true"
             android:selectAllOnFocus="true"
-            android:layout_below="@+id/lblLagerort"
-            android:layout_toStartOf="@id/lblLagerort"
-            android:layout_alignEnd="@+id/btnKeybd"
             android:layout_marginTop="12dp" />
     </LinearLayout>
 
